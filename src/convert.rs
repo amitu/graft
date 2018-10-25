@@ -3,7 +3,10 @@ use failure::Error;
 use section::Section;
 use serde_json;
 
-pub fn convert(txt: &str, context: &Context) -> Result<serde_json::Value, Error> {
+pub fn convert<T>(txt: &str, context: &Box<T>) -> Result<serde_json::Value, Error>
+where
+    T: Context,
+{
     let sections = Section::parse(txt)?;
     let mut value = serde_json::Value::Null;
     for section in sections {
@@ -15,17 +18,17 @@ pub fn convert(txt: &str, context: &Context) -> Result<serde_json::Value, Error>
 #[cfg(test)]
 mod tests {
     use assert_snapshot;
-    use context::Context;
+    use context::StaticContext;
     use serde_json;
     use textwrap::dedent as d;
 
-    fn t(txt: &str, ctx: &Context, reference: serde_json::Value) {
+    fn t(txt: &str, ctx: &StaticContext, reference: serde_json::Value) {
         assert_eq!(super::convert(&d(txt), ctx).unwrap(), reference);
     }
 
     #[test]
     fn convert() {
-        let ctx = Context::new(
+        let ctx = StaticContext::new(
             "foo.json",
             json!({
                 "hello": "world",

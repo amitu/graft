@@ -21,11 +21,14 @@ impl Section {
         unimplemented!()
     }
 
-    pub fn apply(
+    pub fn apply<T>(
         &self,
         value: serde_json::Value,
-        ctx: &Context,
-    ) -> Result<serde_json::Value, Error> {
+        ctx: &Box<T>,
+    ) -> Result<serde_json::Value, Error>
+    where
+        T: Context,
+    {
         unimplemented!()
     }
 }
