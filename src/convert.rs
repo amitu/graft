@@ -3,7 +3,7 @@ use failure::Error;
 use section::Section;
 use serde_json;
 
-pub fn convert<T>(txt: &str, context: &Box<T>) -> Result<serde_json::Value, Error>
+pub fn convert<T>(txt: &str, context: &T) -> Result<serde_json::Value, Error>
 where
     T: Context,
 {

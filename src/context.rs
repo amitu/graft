@@ -49,8 +49,14 @@ pub struct CachedContext<Context> {
     cache: HashMap<String, String>,
 }
 
-//impl Context for CachedContext<Context> {
-//    fn lookup(&self, key: &str) -> Result<String, failure::Error> {
-//        (*self.root).lookup(key)
-//    }
-//}
+impl<T> Context for CachedContext<T>
+where
+    T: Context,
+{
+    fn lookup(&self, key: &str) -> Result<String, failure::Error> {
+        match self.cache.get(key) {
+            Some(v) => Ok(v.to_string()),
+            None => (*self.root).lookup(key),
+        }
+    }
+}
