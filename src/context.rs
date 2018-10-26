@@ -1,5 +1,6 @@
 use failure;
 use std::{collections::HashMap, fs::File, io::Read, path::PathBuf};
+use textwrap::dedent as d;
 
 pub trait Context {
     fn lookup(&self, key: &str) -> Result<String, failure::Error>;
@@ -21,12 +22,12 @@ impl Context for StaticContext {
 impl StaticContext {
     pub fn new(key: &str, value: &str) -> StaticContext {
         let mut m = HashMap::new();
-        m.insert(key.into(), value.into());
+        m.insert(key.into(), d(value));
         StaticContext { aliases: m }
     }
 
     pub fn with(mut self, key: &str, value: &str) -> StaticContext {
-        self.aliases.insert(key.into(), value.into());
+        self.aliases.insert(key.into(), d(value));
         self
     }
 }
