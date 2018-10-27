@@ -1,5 +1,5 @@
 use failure;
-use std::{collections::HashMap, fs::File, io::Read, path::PathBuf};
+use std::{cell::RefCell, collections::HashMap, fs::File, io::Read, path::PathBuf};
 use textwrap::dedent as d;
 
 pub trait Context {
@@ -45,9 +45,15 @@ impl Context for DirContext {
     }
 }
 
+impl DirContext {
+    pub fn new(dir: PathBuf) -> DirContext {
+        DirContext { dir }
+    }
+}
+
 pub struct CachedContext<Context> {
     root: Box<Context>,
-    cache: HashMap<String, String>,
+    cache: RefCell<HashMap<String, Option<String>>>,
 }
 
 impl<T> Context for CachedContext<T>
@@ -55,9 +61,36 @@ where
     T: Context,
 {
     fn lookup(&self, key: &str) -> Result<String, failure::Error> {
-        match self.cache.get(key) {
-            Some(v) => Ok(v.to_string()),
-            None => (*self.root).lookup(key),
+        match self.cache.borrow().get(key) {
+            Some(v) => match v {
+                Some(v) => return Ok(v.to_string()),
+                None => return Err(failure::err_msg("not found")),
+            },
+            None => {}
+        };
+
+        (&self.root)
+            .lookup(key)
+            .map(|v| {
+                self.cache
+                    .borrow_mut()
+                    .insert(key.to_string(), Some(v.clone()));
+                v
+            }).map_err(|e| {
+                self.cache.borrow_mut().insert(key.to_string(), None);
+                e
+            })
+    }
+}
+
+impl<T> CachedContext<T>
+where
+    T: Context,
+{
+    pub fn new(root: Box<T>) -> CachedContext<T> {
+        CachedContext {
+            root,
+            cache: RefCell::new(HashMap::new()),
         }
     }
 }
