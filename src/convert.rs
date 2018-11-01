@@ -8,11 +8,7 @@ where
     T: Context,
 {
     let sections = Section::parse(txt)?;
-    let mut value = serde_json::Value::Null;
-    for section in sections {
-        value = section.apply(value, context)?;
-    }
-    Ok(value)
+    unimplemented!()
 }
 
 #[cfg(test)]
@@ -50,7 +46,7 @@ mod tests {
 
         t(
             r#"
-                -- @ROOT~json
+                -- @ROOT ~json
                 {
                     "yo": "man"
                 }"#,
@@ -59,7 +55,6 @@ mod tests {
                 "yo": "man"
             }),
         );
-        /*
         t(
             r#"
                 -- @ROOT
@@ -70,8 +65,9 @@ mod tests {
             }),
         );
 
+        /*
         t(
-            r"-- @ROOT#foo",
+            r"-- @ROOT #foo",
             &ctx,
             json!({
                 "hello": "world",
@@ -82,7 +78,7 @@ mod tests {
 
         t(
             r#"
-                -- @ROOT#foo
+                -- @ROOT #foo
                 main: "hello main"
             "#,
             &ctx,
@@ -95,8 +91,8 @@ mod tests {
 
         t(
             r#"
-                -- @ROOT#foo
-                -- @main~text
+                -- @ROOT #foo
+                -- @main ~text
                 hello main
             "#,
             &ctx,
@@ -109,8 +105,8 @@ mod tests {
 
         t(
             r#"
-                -- @ROOT#foo
-                -- @main#title~text
+                -- @ROOT #foo
+                -- @main #title ~text
             "#,
             &ctx,
             json!({
