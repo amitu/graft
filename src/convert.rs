@@ -1,14 +1,23 @@
 use context::Context;
-use failure::Error;
+use failure::{err_msg, Error};
 use section::Section;
 use serde_json;
 
-pub fn convert<T>(txt: &str, context: &T) -> Result<serde_json::Value, Error>
+pub fn convert<T>(txt: &str, ctx: &T) -> Result<serde_json::Value, Error>
 where
     T: Context,
 {
-    let sections = Section::parse(txt)?;
-    unimplemented!()
+    let sections = Section::parse(txt, ctx)?;
+    eval("ROOT", sections)
+}
+
+fn eval(path: &str, sections: Vec<Section>) -> Result<serde_json::Value, Error> {
+    for section in sections {
+        if section.reference == path {
+            return Ok(section.body);
+        }
+    }
+    Err(err_msg("not found"))
 }
 
 #[cfg(test)]
@@ -30,15 +39,15 @@ mod tests {
                 "hello": "world",
                 "main": {
                     "$ref": "main",
-                    "$default": "yo",
+                    "$default": "yo"
                 },
                 "children": {
                     "$ref": "children",
                     "list": true,
                     "sample": {
                         "name": "something",
-                        "value": "some value",
-                    },
+                        "value": "some value"
+                    }
                 }
             }
             "#,
@@ -65,9 +74,8 @@ mod tests {
             }),
         );
 
-        /*
         t(
-            r"-- @ROOT #foo",
+            r"-- @ROOT $foo",
             &ctx,
             json!({
                 "hello": "world",
@@ -76,6 +84,7 @@ mod tests {
             }),
         );
 
+        /*
         t(
             r#"
                 -- @ROOT #foo

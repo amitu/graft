@@ -31,7 +31,7 @@ pub struct Section {
 }
 
 impl Section {
-    pub fn from(header: &str, body: &str) -> Result<Section, Error> {
+    pub fn from(header: &str, body: &str, ctx: &Context) -> Result<Section, Error> {
         let mut section = Section {
             include: None,
             reference: "ROOT".into(),
@@ -90,17 +90,30 @@ impl Section {
                 serde_json::Value::String(markdown_to_html(body, &ComrakOptions::default()))
             }
             Format::JSON => serde_json::from_str(body)?,
-            Format::YAML => serde_yaml::from_str(body)?,
+            Format::YAML => {
+                println!("body = {}", body);
+                if body.trim() == "" {
+                    json!({})
+                } else {
+                    serde_yaml::from_str(body)?
+                }
+            }
             Format::SQL => {
                 serde_json::Value::String(body.into()) // TODO
             }
         };
 
+        if let Some(ref path) = section.include {
+            // TODO: handle existing body
+            // TODO: handle other formats if json is not found?
+            section.body = serde_json::from_str(&ctx.lookup(&format!("{}.json", path))?)?
+        }
+
         println!("{} => {:?}", &header, &section);
         Ok(section)
     }
 
-    pub fn parse(txt: &str) -> Result<Vec<Section>, Error> {
+    pub fn parse(txt: &str, ctx: &Context) -> Result<Vec<Section>, Error> {
         let txt = "\n".to_owned() + txt;
         println!("txt: {}", &txt);
         let mut sections = vec![];
@@ -109,7 +122,7 @@ impl Section {
             let split = part.splitn(2, '\n').collect::<Vec<&str>>();
             let (header, body) = (split[0], split[1]);
             println!("header: {} ::: body: {}", &header, &body);
-            sections.push(Section::from(header, body)?);
+            sections.push(Section::from(header, body, ctx)?);
         }
         Ok(sections)
     }
@@ -118,18 +131,21 @@ impl Section {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use context::StaticContext;
 
     #[test]
     fn from() {
-        let s = Section::from("-- $include @ROOT !sql", "foo: bar").unwrap();
-        assert_eq!(s.include, Some("include".into()));
+        let ctx = StaticContext::new("", "");
+
+        let s = Section::from("-- @ROOT !sql", "foo: bar", &ctx).unwrap();
+        assert_eq!(s.include, None);
         assert_eq!(s.reference, "ROOT");
         assert_eq!(s.format, Format::YAML);
         assert_eq!(s.process, Some(Exec::SQL));
         assert_eq!(s.body, json!({"foo": "bar"}));
 
-        let s = Section::from("-- $include ~text", "yo").unwrap();
-        assert_eq!(s.include, Some("include".into()));
+        let s = Section::from("-- ~text", "yo", &ctx).unwrap();
+        assert_eq!(s.include, None);
         assert_eq!(s.reference, "ROOT");
         assert_eq!(s.format, Format::Text);
         assert_eq!(s.process, None);
