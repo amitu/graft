@@ -21,7 +21,12 @@ fn eval(path: &str, sections: &[Section], start: usize) -> Result<serde_json::Va
         if section.reference != path {
             continue;
         }
-        return digest(&section.body, sections, idx);
+        let prefix = if path == "ROOT" {
+            "".to_string()
+        } else {
+            path.to_string() + "/"
+        };
+        return digest(&section.body, sections, idx, prefix);
     }
     println!(
         "not found '{}' starting at {} in {:?}",
@@ -30,10 +35,17 @@ fn eval(path: &str, sections: &[Section], start: usize) -> Result<serde_json::Va
     Err(err_msg(format!("not found: {}", path)))
 }
 
+fn eval_list(path: &str, sections: &[Section], start: usize) -> Result<serde_json::Value, Error> {
+    let mut lst = vec![];
+
+    Ok(serde_json::Value::Array(lst))
+}
+
 fn digest(
     body: &serde_json::Value,
     sections: &[Section],
     start: usize,
+    prefix: String,
 ) -> Result<serde_json::Value, Error> {
     if let serde_json::Value::Object(o) = body {
         let mut n = serde_json::Map::new();
@@ -44,7 +56,7 @@ fn digest(
             }
             let ov = v.as_object().unwrap(); // safe because we have already checked
             if !ov.contains_key("$ref") {
-                n.insert(k.to_string(), v.clone());
+                n.insert(k.to_string(), digest(v, sections, start, prefix.clone())?);
                 continue;
             }
 
@@ -53,10 +65,14 @@ fn digest(
                 return Err(err_msg(format!("$ref if not a string: {:?}", &ref_)));
             }
 
-            let ref_ = ref_.as_str().unwrap(); // safe because we have already checked
+            let ref_ = prefix.clone() + ref_.as_str().unwrap(); // safe because we have already checked
 
-            let v = if has_path(k, sections, start + 1) {
-                eval(ref_, sections, start + 1)?
+            let v = if has_path(&ref_, sections, start + 1) {
+                if ref_.ends_with("[]") {
+                    eval_list(&ref_, sections, start + 1)?
+                } else {
+                    eval(&ref_, sections, start + 1)?
+                }
             } else {
                 ov.get("default")
                     .ok_or_else(|| err_msg(format!("'{}' not found", ref_)))?
@@ -80,7 +96,7 @@ fn has_path(path: &str, sections: &[Section], start: usize) -> bool {
         }
         return true;
     }
-    false
+    path.ends_with("[]")
 }
 
 #[cfg(test)]
@@ -90,6 +106,7 @@ mod tests {
     use textwrap::dedent as d;
 
     fn t(txt: &str, ctx: &StaticContext, reference: serde_json::Value) {
+        println!("============= TEST ==============");
         assert_eq!(
             super::convert(&d(txt.trim_right()), ctx).unwrap(),
             reference
@@ -106,10 +123,27 @@ mod tests {
                 "main": {
                     "$ref": "main",
                     "default": "yo"
+                },
+                "obj": {
+                    "list": {
+                        "$ref": "children[]"
+                    }
+                },
+                "main2": {
+                    "$ref": "main2",
+                    "default": "yo2"
                 }
             }
             "#,
-        ).with("title.txt", "this is the title");
+        ).with("title.txt", "this is the title")
+        .with(
+            "bar.json",
+            r#"{
+                "bar": {
+                    "$ref": "bar"
+                }
+            }"#,
+        );
 
         t(
             r#"
@@ -144,6 +178,27 @@ mod tests {
             json!({
                 "hello": "world",
                 "main": "hello main",
+                "obj": {
+                    "list": []
+                },
+                "main2": "yo2",
+            }),
+        );
+
+        t(
+            r#"
+                -- @ROOT $foo
+                -- @main ~text
+                hello main
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": "hello main",
+                "obj": {
+                    "list": []
+                },
+                "main2": "yo2",
             }),
         );
 
@@ -153,13 +208,125 @@ mod tests {
             json!({
                 "hello": "world",
                 "main": "yo",
+                "obj": {
+                    "list": []
+                },
+                "main2": "yo2",
             }),
         );
 
         t(
             r#"
-                -- @ROOT $foo
+                -- $foo
                 -- @main $title ~text
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": "this is the title",
+                "obj": {
+                    "list": []
+                },
+                "main2": "yo2",
+            }),
+        );
+
+        t(
+            r#"
+                -- $foo
+                -- @main $bar
+                -- @main/bar
+                x: 20
+                y: 10
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": {
+                    "bar": {
+                        "y": 10,
+                        "x": 20
+                    }
+                },
+                "obj": {
+                    "list": []
+                },
+                "main2": "yo2",
+            }),
+        );
+
+        t(
+            r#"
+                -- $foo
+                -- @main $bar
+                -- @main/bar
+                x: 20
+                y: 10
+                -- @main2 $bar
+                -- @main2/bar
+                a: 20
+                b: 10
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": {
+                    "bar": {
+                        "y": 10,
+                        "x": 20
+                    }
+                },
+                "obj": {
+                    "list": []
+                },
+                "main2": {
+                    "bar": {
+                        "b": 10,
+                        "a": 20
+                    }
+                },
+            }),
+        );
+
+        /*
+        t(
+            r#"
+                -- $foo
+                -- @main $title ~text
+                -- @children[] ~text
+                child 1
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": "this is the title",
+                "obj": {
+                    "list": ["child 1"]
+                },
+            }),
+        );
+
+        t(
+            r#"
+                -- $post
+                -- @body[] ~md
+                # hello world
+
+                this is the cool i am working
+                -- @body[] $slideshow
+                -- @body[]/slides[] ~md
+                slide 1
+                -- @body[]/slides[] ~md
+                slide 2
+
+                -- @body[] ~md
+
+                end of slide show.
+
+                thanks for.
+
+                -- @body[] $slideshow
+
             "#,
             &ctx,
             json!({
@@ -167,8 +334,6 @@ mod tests {
                 "main": "this is the title",
             }),
         );
-
-        /*
         t(
             r#"
                 -- @ROOT #foo
