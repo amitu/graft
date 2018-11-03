@@ -85,7 +85,7 @@ impl Section {
 
         // TODO: handle exec
         section.body = match section.format {
-            Format::Text => serde_json::Value::String(body.into()),
+            Format::Text => serde_json::Value::String(body.trim().into()),
             Format::Markdown => {
                 serde_json::Value::String(markdown_to_html(body, &ComrakOptions::default()))
             }
@@ -106,7 +106,16 @@ impl Section {
         if let Some(ref path) = section.include {
             // TODO: handle existing body
             // TODO: handle other formats if json is not found?
-            section.body = serde_json::from_str(&ctx.lookup(&format!("{}.json", path))?)?
+            if let Ok(txt) = ctx.lookup(&format!("{}.json", path)) {
+                section.body = serde_json::from_str(&txt)?
+            } else if let Ok(txt) = ctx.lookup(&format!("{}.yml", path)) {
+                section.body = serde_yaml::from_str(&txt)?
+            } else if let Ok(txt) = ctx.lookup(&format!("{}.yaml", path)) {
+                section.body = serde_yaml::from_str(&txt)?
+            } else if let Ok(txt) = ctx.lookup(&format!("{}.txt", path)) {
+                println!("got {}.txt: {}<", path, &txt);
+                section.body = serde_json::Value::String(txt)
+            }
         }
 
         println!("{} => {:?}", &header, &section);

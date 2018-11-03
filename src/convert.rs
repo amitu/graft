@@ -7,17 +7,80 @@ pub fn convert<T>(txt: &str, ctx: &T) -> Result<serde_json::Value, Error>
 where
     T: Context,
 {
+    println!("text: {}", txt);
     let sections = Section::parse(txt, ctx)?;
-    eval("ROOT", sections)
+    println!("sections: {:?}", &sections);
+    eval("ROOT", &sections, 0)
 }
 
-fn eval(path: &str, sections: Vec<Section>) -> Result<serde_json::Value, Error> {
-    for section in sections {
-        if section.reference == path {
-            return Ok(section.body);
+fn eval(path: &str, sections: &[Section], start: usize) -> Result<serde_json::Value, Error> {
+    for (idx, section) in sections.iter().enumerate() {
+        if idx < start {
+            continue;
         }
+        if section.reference != path {
+            continue;
+        }
+        return digest(&section.body, sections, idx);
     }
-    Err(err_msg("not found"))
+    println!(
+        "not found '{}' starting at {} in {:?}",
+        path, start, sections
+    );
+    Err(err_msg(format!("not found: {}", path)))
+}
+
+fn digest(
+    body: &serde_json::Value,
+    sections: &[Section],
+    start: usize,
+) -> Result<serde_json::Value, Error> {
+    if let serde_json::Value::Object(o) = body {
+        let mut n = serde_json::Map::new();
+        for (k, v) in o {
+            if !v.is_object() {
+                n.insert(k.to_string(), v.clone());
+                continue;
+            }
+            let ov = v.as_object().unwrap(); // safe because we have already checked
+            if !ov.contains_key("$ref") {
+                n.insert(k.to_string(), v.clone());
+                continue;
+            }
+
+            let ref_ = ov.get("$ref").unwrap(); // safe because we have already checked
+            if !ref_.is_string() {
+                return Err(err_msg(format!("$ref if not a string: {:?}", &ref_)));
+            }
+
+            let ref_ = ref_.as_str().unwrap(); // safe because we have already checked
+
+            let v = if has_path(k, sections, start + 1) {
+                eval(ref_, sections, start + 1)?
+            } else {
+                ov.get("default")
+                    .ok_or_else(|| err_msg(format!("'{}' not found", ref_)))?
+                    .clone()
+            };
+            n.insert(k.to_string(), v);
+        }
+        return Ok(serde_json::Value::Object(n));
+    } else {
+        return Ok(body.clone());
+    }
+}
+
+fn has_path(path: &str, sections: &[Section], start: usize) -> bool {
+    for (idx, section) in sections.iter().enumerate() {
+        if idx < start {
+            continue;
+        }
+        if section.reference != path {
+            continue;
+        }
+        return true;
+    }
+    false
 }
 
 #[cfg(test)]
@@ -27,7 +90,10 @@ mod tests {
     use textwrap::dedent as d;
 
     fn t(txt: &str, ctx: &StaticContext, reference: serde_json::Value) {
-        assert_eq!(super::convert(&d(txt), ctx).unwrap(), reference);
+        assert_eq!(
+            super::convert(&d(txt.trim_right()), ctx).unwrap(),
+            reference
+        );
     }
 
     #[test]
@@ -39,15 +105,7 @@ mod tests {
                 "hello": "world",
                 "main": {
                     "$ref": "main",
-                    "$default": "yo"
-                },
-                "children": {
-                    "$ref": "children",
-                    "list": true,
-                    "sample": {
-                        "name": "something",
-                        "value": "some value"
-                    }
+                    "default": "yo"
                 }
             }
             "#,
@@ -58,7 +116,8 @@ mod tests {
                 -- @ROOT ~json
                 {
                     "yo": "man"
-                }"#,
+                }
+            "#,
             &ctx,
             json!({
                 "yo": "man"
@@ -67,10 +126,24 @@ mod tests {
         t(
             r#"
                 -- @ROOT
-                yo: man"#,
+                yo: man
+            "#,
             &ctx,
             json!({
                 "yo": "man"
+            }),
+        );
+
+        t(
+            r#"
+                -- $foo
+                -- @main ~text
+                hello main
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": "hello main",
             }),
         );
 
@@ -80,7 +153,18 @@ mod tests {
             json!({
                 "hello": "world",
                 "main": "yo",
-                "children": []
+            }),
+        );
+
+        t(
+            r#"
+                -- @ROOT $foo
+                -- @main $title ~text
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": "this is the title",
             }),
         );
 
@@ -98,32 +182,6 @@ mod tests {
             }),
         );
 
-        t(
-            r#"
-                -- @ROOT #foo
-                -- @main ~text
-                hello main
-            "#,
-            &ctx,
-            json!({
-                "hello": "world",
-                "main": "hello main",
-                "children": []
-            }),
-        );
-
-        t(
-            r#"
-                -- @ROOT #foo
-                -- @main #title ~text
-            "#,
-            &ctx,
-            json!({
-                "hello": "world",
-                "main": "this is the title",
-                "children": []
-            }),
-        );
         */
     }
 }

@@ -15,19 +15,19 @@ impl Context for StaticContext {
         self.aliases
             .get(key)
             .map(|v| v.to_string())
-            .ok_or_else(|| failure::err_msg("key not found"))
+            .ok_or_else(|| failure::err_msg(format!("key not found: {}", key)))
     }
 }
 
 impl StaticContext {
     pub fn new(key: &str, value: &str) -> StaticContext {
         let mut m = HashMap::new();
-        m.insert(key.into(), d(value));
+        m.insert(key.into(), d(value).trim().to_string());
         StaticContext { aliases: m }
     }
 
     pub fn with(mut self, key: &str, value: &str) -> StaticContext {
-        self.aliases.insert(key.into(), d(value));
+        self.aliases.insert(key.into(), d(value).trim().to_string());
         self
     }
 }
