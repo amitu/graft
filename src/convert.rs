@@ -10,11 +10,19 @@ where
     println!("text: {}", txt);
     let sections = Section::parse(txt, ctx)?;
     println!("sections: {:?}", &sections);
-    eval("ROOT", &sections, 0)
+    eval("ROOT", &sections, 0, "END")
 }
 
-fn eval(path: &str, sections: &[Section], start: usize) -> Result<serde_json::Value, Error> {
+fn eval(
+    path: &str,
+    sections: &[Section],
+    start: usize,
+    till: &str,
+) -> Result<serde_json::Value, Error> {
     for (idx, section) in sections.iter().enumerate() {
+        if section.reference == till {
+            break;
+        }
         if idx < start {
             continue;
         }
@@ -26,7 +34,7 @@ fn eval(path: &str, sections: &[Section], start: usize) -> Result<serde_json::Va
         } else {
             path.to_string() + "/"
         };
-        return digest(&section.body, sections, idx, prefix);
+        return digest(&section.body, sections, idx, prefix, till);
     }
     println!(
         "not found '{}' starting at {} in {:?}",
@@ -35,8 +43,31 @@ fn eval(path: &str, sections: &[Section], start: usize) -> Result<serde_json::Va
     Err(err_msg(format!("not found: {}", path)))
 }
 
-fn eval_list(path: &str, sections: &[Section], start: usize) -> Result<serde_json::Value, Error> {
+fn eval_list(
+    path: &str,
+    sections: &[Section],
+    start: usize,
+    till: &str,
+) -> Result<serde_json::Value, Error> {
     let mut lst = vec![];
+
+    for (idx, section) in sections.iter().enumerate() {
+        if section.reference == till {
+            break;
+        }
+        if idx < start {
+            continue;
+        }
+        if section.reference != path {
+            continue;
+        }
+        let prefix = if path == "ROOT" {
+            "".to_string()
+        } else {
+            path.to_string() + "/"
+        };
+        lst.push(digest(&section.body, sections, idx, prefix, till)?);
+    }
 
     Ok(serde_json::Value::Array(lst))
 }
@@ -46,6 +77,7 @@ fn digest(
     sections: &[Section],
     start: usize,
     prefix: String,
+    till: &str,
 ) -> Result<serde_json::Value, Error> {
     if let serde_json::Value::Object(o) = body {
         let mut n = serde_json::Map::new();
@@ -56,7 +88,10 @@ fn digest(
             }
             let ov = v.as_object().unwrap(); // safe because we have already checked
             if !ov.contains_key("$ref") {
-                n.insert(k.to_string(), digest(v, sections, start, prefix.clone())?);
+                n.insert(
+                    k.to_string(),
+                    digest(v, sections, start, prefix.clone(), till)?,
+                );
                 continue;
             }
 
@@ -67,11 +102,11 @@ fn digest(
 
             let ref_ = prefix.clone() + ref_.as_str().unwrap(); // safe because we have already checked
 
-            let v = if has_path(&ref_, sections, start + 1) {
+            let v = if has_path(&ref_, sections, start + 1, till) {
                 if ref_.ends_with("[]") {
-                    eval_list(&ref_, sections, start + 1)?
+                    eval_list(&ref_, sections, start + 1, till)?
                 } else {
-                    eval(&ref_, sections, start + 1)?
+                    eval(&ref_, sections, start + 1, till)?
                 }
             } else {
                 ov.get("default")
@@ -86,8 +121,11 @@ fn digest(
     }
 }
 
-fn has_path(path: &str, sections: &[Section], start: usize) -> bool {
+fn has_path(path: &str, sections: &[Section], start: usize, till: &str) -> bool {
     for (idx, section) in sections.iter().enumerate() {
+        if section.reference == till {
+            break;
+        }
         if idx < start {
             continue;
         }
@@ -288,7 +326,6 @@ mod tests {
             }),
         );
 
-        /*
         t(
             r#"
                 -- $foo
@@ -303,9 +340,107 @@ mod tests {
                 "obj": {
                     "list": ["child 1"]
                 },
+                "main2": "yo2",
             }),
         );
 
+        t(
+            r#"
+                -- $foo
+                -- @main $title ~text
+                -- @children[] ~text
+                child 1
+                -- @children[] ~text
+                child 2
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": "this is the title",
+                "obj": {
+                    "list": ["child 1", "child 2"]
+                },
+                "main2": "yo2",
+            }),
+        );
+
+        t(
+            r#"
+                -- $foo
+                -- @main $title ~text
+                -- @children[] $bar
+                -- @children[]/bar
+                a: 20
+                b: 10
+                -- @children[] $bar
+                -- @children[]/bar
+                x: 20
+                y: 10
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": "this is the title",
+                "obj": {
+                    "list": [
+                        {
+                            "bar": {
+                                "b": 10,
+                                "a": 20
+                            }
+                        },
+                        {
+                            "bar": {
+                                "y": 10,
+                                "x": 20
+                            }
+                        },
+                    ]
+                },
+                "main2": "yo2",
+            }),
+        );
+
+        t(
+            r#"
+                -- $foo
+                -- @main $title ~text
+                -- @children[] $bar
+                -- @children[]/bar
+                a: 20
+                b: 10
+                -- @children[] $foo
+                -- @children[]/children[] ~text
+                nested child
+                -- @children[]/main ~text
+                inner main
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": "this is the title",
+                "obj": {
+                    "list": [
+                        {
+                            "bar": {
+                                "b": 10,
+                                "a": 20
+                            }
+                        },
+                        {
+                            "hello": "world",
+                            "main": "inner main",
+                            "obj": {
+                                "list": ["nested child"]
+                            },
+                            "main2": "yo2",
+                        },
+                    ]
+                },
+                "main2": "yo2",
+            }),
+        );
+        /*
         t(
             r#"
                 -- $post
