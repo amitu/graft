@@ -102,22 +102,8 @@ impl Section {
 
         let mut drop = false;
         if let Some(ref path) = section.include {
-            if let serde_json::Value::Object(ref o) = section.body {
-                for (k, v) in o {
-                    let p = if section.reference == "ROOT" {
-                        "".to_string()
-                    } else {
-                        section.reference.clone() + "/"
-                    };
-                    others.push(Section {
-                        include: None,
-                        body: v.clone(),
-                        reference: p + &k,
-                        format: Format::JSON,
-                        process: None,
-                    })
-                }
-            }
+            let obody = section.body.clone();
+
             if let Ok(txt) = ctx.lookup(&format!("{}.json", path)) {
                 section.body = serde_json::from_str(&txt)?
             } else if let Ok(txt) = ctx.lookup(&format!("{}.yml", path)) {
@@ -130,6 +116,23 @@ impl Section {
                 // TODO: what to do with body?
                 drop = true;
                 others.extend(Section::parse(&txt, ctx)?)
+            }
+
+            if let serde_json::Value::Object(ref o) = obody {
+                for (k, v) in o {
+                    let p = if section.reference == "ROOT" || drop {
+                        "".to_string()
+                    } else {
+                        section.reference.clone() + "/"
+                    };
+                    others.push(Section {
+                        include: None,
+                        body: v.clone(),
+                        reference: p + &k,
+                        format: Format::JSON,
+                        process: None,
+                    })
+                }
             }
         }
 

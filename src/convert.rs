@@ -328,7 +328,6 @@ mod tests {
             }),
         );
 
-        /*
         t(
             r#"
                 -- $foo2
@@ -352,7 +351,6 @@ mod tests {
                 "main2": "la la la",
             }),
         );
-        */
 
         t(
             r#"
