@@ -7,9 +7,8 @@ pub fn convert<T>(txt: &str, ctx: &T) -> Result<serde_json::Value, Error>
 where
     T: Context,
 {
-    println!("text: {}", txt);
     let sections = Section::parse(txt, ctx)?;
-    println!("sections: {:?}", &sections);
+    println!("sections: {:#?}", &sections);
     eval("ROOT", &sections, 0, "END")
 }
 
@@ -36,10 +35,6 @@ fn eval(
         };
         return digest(&section.body, sections, idx, prefix, till);
     }
-    println!(
-        "not found '{}' starting at {} in {:?}",
-        path, start, sections
-    );
     Err(err_msg(format!("not found: {}", path)))
 }
 
@@ -145,6 +140,7 @@ mod tests {
 
     fn t(txt: &str, ctx: &StaticContext, reference: serde_json::Value) {
         println!("============= TEST ==============");
+        println!("{}", txt);
         assert_eq!(
             super::convert(&d(txt.trim_right()), ctx).unwrap(),
             reference
@@ -181,7 +177,7 @@ mod tests {
                     "$ref": "bar"
                 }
             }"#,
-        );
+        ).with("foo2.graft", "-- $foo\n-- @main $bar\n");
 
         t(
             r#"
@@ -211,6 +207,22 @@ mod tests {
                 -- $foo
                 -- @main ~text
                 hello main
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": "hello main",
+                "obj": {
+                    "list": []
+                },
+                "main2": "yo2",
+            }),
+        );
+
+        t(
+            r#"
+                -- $foo
+                main: hello main
             "#,
             &ctx,
             json!({
@@ -292,6 +304,55 @@ mod tests {
                 "main2": "yo2",
             }),
         );
+
+        t(
+            r#"
+                -- $foo2
+                -- @main/bar
+                x: 20
+                y: 10
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": {
+                    "bar": {
+                        "y": 10,
+                        "x": 20
+                    }
+                },
+                "obj": {
+                    "list": []
+                },
+                "main2": "yo2",
+            }),
+        );
+
+        /*
+        t(
+            r#"
+                -- $foo2
+                main2: la la la
+                -- @main/bar
+                x: 20
+                y: 10
+            "#,
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": {
+                    "bar": {
+                        "y": 10,
+                        "x": 20
+                    }
+                },
+                "obj": {
+                    "list": []
+                },
+                "main2": "la la la",
+            }),
+        );
+        */
 
         t(
             r#"

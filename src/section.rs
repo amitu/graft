@@ -31,7 +31,7 @@ pub struct Section {
 }
 
 impl Section {
-    pub fn from(header: &str, body: &str, ctx: &Context) -> Result<Section, Error> {
+    pub fn from(header: &str, body: &str, ctx: &Context) -> Result<Vec<Section>, Error> {
         let mut section = Section {
             include: None,
             reference: "ROOT".into(),
@@ -39,9 +39,7 @@ impl Section {
             process: None,
             body: serde_json::Value::Null,
         };
-
-        println!("body: {} <- body", body);
-        println!("{} => {:?}", &header, &section);
+        let mut others = vec![];
 
         for part in header.split_whitespace() {
             if part == "--" {
@@ -91,7 +89,6 @@ impl Section {
             }
             Format::JSON => serde_json::from_str(body)?,
             Format::YAML => {
-                println!("body = {}", body);
                 if body.trim() == "" {
                     json!({})
                 } else {
@@ -103,9 +100,24 @@ impl Section {
             }
         };
 
+        let mut drop = false;
         if let Some(ref path) = section.include {
-            // TODO: handle existing body
-            // TODO: handle other formats if json is not found?
+            if let serde_json::Value::Object(ref o) = section.body {
+                for (k, v) in o {
+                    let p = if section.reference == "ROOT" {
+                        "".to_string()
+                    } else {
+                        section.reference.clone() + "/"
+                    };
+                    others.push(Section {
+                        include: None,
+                        body: v.clone(),
+                        reference: p + &k,
+                        format: Format::JSON,
+                        process: None,
+                    })
+                }
+            }
             if let Ok(txt) = ctx.lookup(&format!("{}.json", path)) {
                 section.body = serde_json::from_str(&txt)?
             } else if let Ok(txt) = ctx.lookup(&format!("{}.yml", path)) {
@@ -113,25 +125,28 @@ impl Section {
             } else if let Ok(txt) = ctx.lookup(&format!("{}.yaml", path)) {
                 section.body = serde_yaml::from_str(&txt)?
             } else if let Ok(txt) = ctx.lookup(&format!("{}.txt", path)) {
-                println!("got {}.txt: {}<", path, &txt);
                 section.body = serde_json::Value::String(txt)
+            } else if let Ok(txt) = ctx.lookup(&format!("{}.graft", path)) {
+                // TODO: what to do with body?
+                drop = true;
+                others.extend(Section::parse(&txt, ctx)?)
             }
         }
 
-        println!("{} => {:?}", &header, &section);
-        Ok(section)
+        if !drop {
+            others.insert(0, section);
+        }
+        Ok(others)
     }
 
     pub fn parse(txt: &str, ctx: &Context) -> Result<Vec<Section>, Error> {
         let txt = "\n".to_owned() + txt;
-        println!("txt: {}", &txt);
         let mut sections = vec![];
         for part in txt.split("\n--").skip(1) {
             let part = part.to_owned() + "\n";
             let split = part.splitn(2, '\n').collect::<Vec<&str>>();
             let (header, body) = (split[0], split[1]);
-            println!("header: {} ::: body: {}", &header, &body);
-            sections.push(Section::from(header, body, ctx)?);
+            sections.extend(Section::from(header, body, ctx)?);
         }
         Ok(sections)
     }
@@ -146,14 +161,14 @@ mod tests {
     fn from() {
         let ctx = StaticContext::new("", "");
 
-        let s = Section::from("-- @ROOT !sql", "foo: bar", &ctx).unwrap();
+        let s = &Section::from("-- @ROOT !sql", "foo: bar", &ctx).unwrap()[0];
         assert_eq!(s.include, None);
         assert_eq!(s.reference, "ROOT");
         assert_eq!(s.format, Format::YAML);
         assert_eq!(s.process, Some(Exec::SQL));
         assert_eq!(s.body, json!({"foo": "bar"}));
 
-        let s = Section::from("-- ~text", "yo", &ctx).unwrap();
+        let s = &Section::from("-- ~text", "yo", &ctx).unwrap()[0];
         assert_eq!(s.include, None);
         assert_eq!(s.reference, "ROOT");
         assert_eq!(s.format, Format::Text);
