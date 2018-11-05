@@ -8,7 +8,6 @@ where
     T: Context,
 {
     let sections = Section::parse(txt, ctx)?;
-    println!("sections: {:#?}", &sections);
     eval("ROOT", &sections, 0, "END")
 }
 
@@ -78,7 +77,10 @@ fn digest(
         let mut n = serde_json::Map::new();
         for (k, v) in o {
             if !v.is_object() {
-                n.insert(k.to_string(), v.clone());
+                n.insert(
+                    k.to_string(),
+                    digest(v, sections, start, prefix.clone(), till)?,
+                );
                 continue;
             }
             let ov = v.as_object().unwrap(); // safe because we have already checked
@@ -111,6 +113,12 @@ fn digest(
             n.insert(k.to_string(), v);
         }
         return Ok(serde_json::Value::Object(n));
+    } else if let serde_json::Value::Array(a) = body {
+        let mut n = vec![];
+        for item in a {
+            n.push(digest(item, sections, start, prefix.clone(), till)?);
+        }
+        return Ok(serde_json::Value::Array(n));
     } else {
         return Ok(body.clone());
     }
@@ -177,7 +185,32 @@ mod tests {
                     "$ref": "bar"
                 }
             }"#,
-        ).with("foo2.graft", "-- $foo\n-- @main $bar\n");
+        ).with("foo2.graft", "-- $foo\n-- @main $bar\n")
+        .with(
+            "nested.json",
+            r#"{
+                "title": {
+                    "$ref": "title"
+                },
+                "obj": {
+                    "title": {
+                        "$ref": "title"
+                    }
+                }
+            }"#,
+        ).with(
+            "array.json",
+            r#"{
+                "title": {
+                    "$ref": "title"
+                },
+                "obj": [{
+                    "title": {
+                        "$ref": "title"
+                    }
+                }]
+            }"#,
+        );
 
         t(
             r#"
@@ -499,6 +532,37 @@ mod tests {
                 "main2": "yo2",
             }),
         );
+
+        t(
+            r#"
+                -- $nested
+                -- @title ~text
+                the title
+            "#,
+            &ctx,
+            json!({
+                "title": "the title",
+                "obj": {
+                    "title": "the title",
+                },
+            }),
+        );
+
+        t(
+            r#"
+                -- $array
+                -- @title ~text
+                the title
+            "#,
+            &ctx,
+            json!({
+                "title": "the title",
+                "obj": [{
+                    "title": "the title",
+                }],
+            }),
+        );
+
         /*
         t(
             r#"
