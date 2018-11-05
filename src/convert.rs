@@ -185,6 +185,17 @@ mod tests {
                     "$ref": "bar"
                 }
             }"#,
+        ).with(
+            "nested_bar.json",
+            r#"{
+                "bar": {
+                    "$ref": "bar",
+                    "default": "ho ho ho"
+                },
+                "title": {
+                    "$ref": "/title"
+                }
+            }"#,
         ).with("foo2.graft", "-- $foo\n-- @main $bar\n")
         .with(
             "nested.json",
@@ -210,6 +221,16 @@ mod tests {
                     }
                 }]
             }"#,
+        ).with(
+            "array2.json",
+            r#"{
+                "title": {
+                    "$ref": "title"
+                },
+                "obj": [{
+                    "$ref": "title"
+                }]
+            }"#,
         );
 
         t(
@@ -224,6 +245,7 @@ mod tests {
                 "yo": "man"
             }),
         );
+
         t(
             r#"
                 -- @ROOT
@@ -560,6 +582,19 @@ mod tests {
                 "obj": [{
                     "title": "the title",
                 }],
+            }),
+        );
+
+        t(
+            r#"
+                -- $array2
+                -- @title ~text
+                the title
+            "#,
+            &ctx,
+            json!({
+                "title": "the title",
+                "obj": ["the title"],
             }),
         );
 
