@@ -2,8 +2,13 @@ use failure;
 use std::{cell::RefCell, collections::HashMap, fs::File, io::Read, path::PathBuf};
 use textwrap::dedent as d;
 
+
+
 pub trait Context {
     fn lookup(&self, key: &str) -> Result<String, failure::Error>;
+    fn exec(&self, _processor: &str, _query: &str) -> Result<String, failure::Error> {
+        unimplemented!("implement it in your context")
+    }
 }
 
 pub struct StaticContext {
@@ -17,6 +22,13 @@ impl Context for StaticContext {
             .map(|v| v.to_string())
             .ok_or_else(|| failure::err_msg(format!("key not found: {}", key)))
     }
+
+    fn exec(&self, processor: &str, query: &str) -> Result<String, failure::Error> {
+            match processor {
+                "upper" => Ok(query.to_uppercase()),
+                _ => unimplemented!("implement it in your context")
+            }
+        }
 }
 
 impl StaticContext {
