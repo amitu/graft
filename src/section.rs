@@ -6,13 +6,6 @@ use serde_yaml;
 use std::str;
 
 #[derive(Debug, PartialEq)]
-pub enum Exec {
-    SQL,
-    Shell,
-    Python,
-}
-
-#[derive(Debug, PartialEq)]
 pub enum Format {
     Text,
     Markdown,
@@ -26,7 +19,7 @@ pub struct Section {
     pub include: Option<String>,
     pub reference: String,
     pub format: Format,
-    pub process: Option<Exec>,
+    pub process: Option<String>,
     pub body: serde_json::Value,
 }
 
@@ -57,12 +50,7 @@ impl Section {
             }
 
             if part.starts_with("!") {
-                section.process = Some(match part.to_lowercase().as_ref() {
-                    "!sql" => Exec::SQL,
-                    "!sh" | "!shell" => Exec::Shell,
-                    "!py" | "!python" => Exec::Python,
-                    _ => return Err(err_msg(format!("invalid process: {}", part))),
-                });
+                section.process = Some(part[1..].into());
                 continue;
             }
 
@@ -81,18 +69,21 @@ impl Section {
             return Err(err_msg(format!("invalid input: {}", part)));
         }
 
-        // TODO: handle exec
+        let body = match &section.process {
+            Some(processor) => ctx.exec(&processor, body)?,
+            None => body.to_string(),
+        };
         section.body = match section.format {
             Format::Text => serde_json::Value::String(body.trim().into()),
             Format::Markdown => {
-                serde_json::Value::String(markdown_to_html(body, &ComrakOptions::default()))
+                serde_json::Value::String(markdown_to_html(&body, &ComrakOptions::default()))
             }
-            Format::JSON => serde_json::from_str(body)?,
+            Format::JSON => serde_json::from_str(&body)?,
             Format::YAML => {
                 if body.trim() == "" {
                     json!({})
                 } else {
-                    serde_yaml::from_str(body)?
+                    serde_yaml::from_str(&body)?
                 }
             }
             Format::SQL => {
@@ -163,13 +154,12 @@ mod tests {
     #[test]
     fn from() {
         let ctx = StaticContext::new("", "");
-
-        let s = &Section::from("-- @ROOT !sql", "foo: bar", &ctx).unwrap()[0];
+        let s = &Section::from("-- @ROOT !upper", "foo: bar", &ctx).unwrap()[0];
         assert_eq!(s.include, None);
         assert_eq!(s.reference, "ROOT");
         assert_eq!(s.format, Format::YAML);
-        assert_eq!(s.process, Some(Exec::SQL));
-        assert_eq!(s.body, json!({"foo": "bar"}));
+        assert_eq!(s.process, Some("upper".to_string()));
+        assert_eq!(s.body, json!({"FOO": "BAR"}));
 
         let s = &Section::from("-- ~text", "yo", &ctx).unwrap()[0];
         assert_eq!(s.include, None);
