@@ -1,6 +1,6 @@
 [package]
 name = "graft"
-version = "1.0.0"
+version = "0.2.0"
 authors = ["Amit Upadhyay <amitu@acko.com>"]
 description = "json tree builder"
 license = "BSD-2-Clause"
