@@ -145,7 +145,6 @@ mod tests {
     use context::StaticContext;
     use serde_json;
     use textwrap::dedent as d;
-    use regex;
 
     fn t(txt: &str, ctx: &StaticContext, reference: serde_json::Value) {
         println!("============= TEST ==============");
@@ -158,7 +157,6 @@ mod tests {
 
     #[test]
     fn convert() {
-        let by_two_or_more_spaces = regex::Regex::new(r"\s{2,}").unwrap();
         let ctx = StaticContext::new(
             "foo.json",
             r#"
@@ -590,30 +588,16 @@ mod tests {
         t(
             r#"
                 -- @ROOT ~table
-                Header 1        Header 2
-                Cell Data 1     Cell Data 2
-                Cell Data 3     Cell Data 4
+                Header 1,Header 2
+                Cell Data 1,Cell Data 2
+                Cell Data 3,Cell Data 4
             "#,
             &ctx,
-            json!(by_two_or_more_spaces.replace_all(r#"
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Header 1</th>
-                            <th>Header 2</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Cell Data 1</td>
-                            <td>Cell Data 2</td>
-                        </tr>
-                        <tr>
-                            <td>Cell Data 3</td>
-                            <td>Cell Data 4</td>
-                        </tr>
-                    </tbody>
-                </table>"#, "")),
+            json!([
+                ["Header 1", "Header 2"],
+                ["Cell Data 1", "Cell Data 2"],
+                ["Cell Data 3", "Cell Data 4"],
+            ]),
         );
 
         /*t(

@@ -17,7 +17,7 @@ pub enum Exec {
 pub enum Format {
     Text,
     Markdown,
-    SQL, // table
+    SQL,
     YAML,
     JSON,
     Table,
@@ -101,7 +101,7 @@ impl Section {
             Format::SQL => {
                 serde_json::Value::String(body.into()) // TODO
             }
-            Format::Table => serde_json::Value::String(table_format::markdown_to_html_table(body.into())),
+            Format::Table => serde_json::Value::Array(table_format::csv_to_list_list_string(body.into())),
         };
 
         let mut drop = false;

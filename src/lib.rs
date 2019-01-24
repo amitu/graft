@@ -5,7 +5,7 @@ extern crate failure;
 extern crate serde;
 extern crate serde_yaml;
 extern crate textwrap;
-extern crate regex;
+extern crate csv;
 
 mod context;
 mod convert;
