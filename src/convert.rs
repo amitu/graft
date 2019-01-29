@@ -584,8 +584,23 @@ mod tests {
                 }],
             }),
         );
-
+        
         t(
+            r#"
+                -- @ROOT ~table
+                Header 1,Header 2
+                Cell Data 1,Cell Data 2
+                Cell Data 3,Cell Data 4
+            "#,
+            &ctx,
+            json!([
+                ["Header 1", "Header 2"],
+                ["Cell Data 1", "Cell Data 2"],
+                ["Cell Data 3", "Cell Data 4"],
+            ]),
+        );
+
+        /*t(
             r#"
                 -- $array2
                 -- @title ~text
@@ -598,7 +613,7 @@ mod tests {
             }),
         );
 
-        /*
+        
         t(
             r#"
                 -- $post

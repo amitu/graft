@@ -1,5 +1,6 @@
 use comrak::{markdown_to_html, ComrakOptions};
 use context::Context;
+use table_format;
 use failure::{err_msg, Error};
 use serde_json;
 use serde_yaml;
@@ -16,9 +17,10 @@ pub enum Exec {
 pub enum Format {
     Text,
     Markdown,
-    SQL, // table
+    SQL,
     YAML,
     JSON,
+    Table,
 }
 
 #[derive(Debug)]
@@ -73,6 +75,7 @@ impl Section {
                     "~sql" => Format::SQL,
                     "~yml" | "~yaml" => Format::YAML,
                     "~json" => Format::JSON,
+                    "~table" => Format::Table,
                     _ => return Err(err_msg(format!("invalid format: {}", part))),
                 };
                 continue;
@@ -98,6 +101,7 @@ impl Section {
             Format::SQL => {
                 serde_json::Value::String(body.into()) // TODO
             }
+            Format::Table => serde_json::Value::Array(table_format::csv_to_list_list_string(body.into())),
         };
 
         let mut drop = false;
