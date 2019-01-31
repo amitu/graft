@@ -17,7 +17,6 @@ pub enum Exec {
 pub enum Format {
     Text,
     Markdown,
-    SQL,
     YAML,
     JSON,
     Table,
@@ -72,7 +71,6 @@ impl Section {
                 section.format = match part.to_lowercase().as_ref() {
                     "~text" => Format::Text,
                     "~md" | "~markdown" => Format::Markdown,
-                    "~sql" => Format::SQL,
                     "~yml" | "~yaml" => Format::YAML,
                     "~json" => Format::JSON,
                     "~table" => Format::Table,
@@ -97,9 +95,6 @@ impl Section {
                 } else {
                     serde_yaml::from_str(body)?
                 }
-            }
-            Format::SQL => {
-                serde_json::Value::String(body.into()) // TODO
             }
             Format::Table => serde_json::Value::Array(table_format::csv_to_list_list_string(body.into())),
         };
@@ -153,7 +148,8 @@ impl Section {
             let part = part.to_owned() + "\n";
             let split = part.splitn(2, '\n').collect::<Vec<&str>>();
             let (header, body) = (split[0], split[1]);
-            sections.extend(Section::from(header, body, ctx)?);
+            let body = body.replace("/--", "--");
+            sections.extend(Section::from(header, &body[..], ctx)?);
         }
         Ok(sections)
     }
