@@ -1,6 +1,6 @@
-use context::Context;
+use crate::context::Context;
+use crate::section::Section;
 use failure::{err_msg, Error};
-use section::Section;
 use serde_json;
 
 pub fn convert<T>(txt: &str, ctx: &T) -> Result<serde_json::Value, Error>
@@ -142,17 +142,13 @@ fn has_path(path: &str, sections: &[Section], start: usize, till: &str) -> bool 
 
 #[cfg(test)]
 mod tests {
-    use context::StaticContext;
+    use crate::context::StaticContext;
     use serde_json;
     use textwrap::dedent as d;
 
     fn t(txt: &str, ctx: &StaticContext, reference: serde_json::Value) {
-        println!("============= TEST ==============");
-        println!("{}", txt);
-        assert_eq!(
-            super::convert(&d(txt.trim_right()), ctx).unwrap(),
-            reference
-        );
+        let output = super::convert(&d(txt.trim_right()), ctx).unwrap();
+        assert_eq!(reference, output);
     }
 
     #[test]
@@ -231,6 +227,49 @@ mod tests {
                     "$ref": "title"
                 }]
             }"#,
+        ).with(
+            "hfloat.json",
+            r#"{
+                "id": {
+                    "$ref": "id"
+                },
+                "floaters": {
+                    "$ref": "floaters[]"
+                }
+            }"#,
+        );
+
+        t(
+            r#"
+                        -- $hfloat
+                        id: top
+                        -- @floaters[] $hfloat
+                        id: first child
+                        -- @floaters[]/floaters[] $hfloat
+                        id: first first child
+                        -- @floaters[] $hfloat
+                        id: second child
+                        -- @floaters[]/floaters[] $hfloat
+                        id: second first child
+                    "#,
+            &ctx,
+            json!({
+                        "id": "top",
+                        "floaters": [
+                            {
+                                "id": "first child",
+                                "floaters": [
+                                    {"id": "first first child", "floaters": []},
+                                ]
+                            },
+                            {
+                                "id": "second child",
+                                "floaters": [
+                                    {"id": "second first child", "floaters": []},
+                                ]
+                            },
+                        ]
+                    }),
         );
 
         t(
@@ -584,7 +623,7 @@ mod tests {
                 }],
             }),
         );
-        
+
         t(
             r#"
                 -- @ROOT ~table

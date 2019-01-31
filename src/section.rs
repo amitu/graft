@@ -1,6 +1,6 @@
 use comrak::{markdown_to_html, ComrakOptions};
-use context::Context;
-use table_format;
+use crate::context::Context;
+use crate::table_format;
 use failure::{err_msg, Error};
 use serde_json;
 use serde_yaml;
@@ -101,7 +101,9 @@ impl Section {
             Format::SQL => {
                 serde_json::Value::String(body.into()) // TODO
             }
-            Format::Table => serde_json::Value::Array(table_format::csv_to_list_list_string(body.into())),
+            Format::Table => {
+                serde_json::Value::Array(table_format::csv_to_list_list_string(body.into()))
+            }
         };
 
         let mut drop = false;
@@ -162,7 +164,7 @@ impl Section {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use context::StaticContext;
+    use crate::context::StaticContext;
 
     #[test]
     fn from() {
