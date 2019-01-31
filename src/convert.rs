@@ -639,6 +639,15 @@ mod tests {
             ]),
         );
 
+        t(
+            r#"
+                -- @ROOT ~md
+                /-- @content[]/faq[] $faq_item
+            "#,
+            &ctx,
+            json!("<p>-- @content[]/faq[] $faq_item</p>\n"),
+        );
+
         /*t(
             r#"
                 -- $array2
@@ -652,7 +661,7 @@ mod tests {
             }),
         );
 
-        
+
         t(
             r#"
                 -- $post
