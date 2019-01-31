@@ -648,6 +648,15 @@ mod tests {
             json!("<p>-- @content[]/faq[] $faq_item</p>\n"),
         );
 
+        t(
+            r#"
+                -- @ROOT ~md
+                //-- @content[]/faq[] $faq_item
+            "#,
+            &ctx,
+            json!("<p>/-- @content[]/faq[] $faq_item</p>\n")
+        );
+
         /*t(
             r#"
                 -- $array2
