@@ -148,7 +148,8 @@ impl Section {
             let part = part.to_owned() + "\n";
             let split = part.splitn(2, '\n').collect::<Vec<&str>>();
             let (header, body) = (split[0], split[1]);
-            sections.extend(Section::from(header, body, ctx)?);
+            let body = body.replace("/--", "--");
+            sections.extend(Section::from(header, &body[..], ctx)?);
         }
         Ok(sections)
     }
