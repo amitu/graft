@@ -241,35 +241,35 @@ mod tests {
 
         t(
             r#"
-                        -- $hfloat
-                        id: top
-                        -- @floaters[] $hfloat
-                        id: first child
-                        -- @floaters[]/floaters[] $hfloat
-                        id: first first child
-                        -- @floaters[] $hfloat
-                        id: second child
-                        -- @floaters[]/floaters[] $hfloat
-                        id: second first child
-                    "#,
+                -- $hfloat
+                id: top
+                -- @floaters[] $hfloat
+                id: first child
+                -- @floaters[]/floaters[] $hfloat
+                id: first first child
+                -- @floaters[] $hfloat
+                id: second child
+                -- @floaters[]/floaters[] $hfloat
+                id: second first child
+            "#,
             &ctx,
             json!({
-                        "id": "top",
+                "id": "top",
+                "floaters": [
+                    {
+                        "id": "first child",
                         "floaters": [
-                            {
-                                "id": "first child",
-                                "floaters": [
-                                    {"id": "first first child", "floaters": []},
-                                ]
-                            },
-                            {
-                                "id": "second child",
-                                "floaters": [
-                                    {"id": "second first child", "floaters": []},
-                                ]
-                            },
+                            {"id": "first first child", "floaters": []},
                         ]
-                    }),
+                    },
+                    {
+                        "id": "second child",
+                        "floaters": [
+                            {"id": "second first child", "floaters": []},
+                        ]
+                    },
+                ]
+            }),
         );
 
         t(
@@ -293,6 +293,19 @@ mod tests {
             &ctx,
             json!({
                 "yo": "man"
+            }),
+        );
+
+        t(
+            r"-- @ROOT $foo",
+            &ctx,
+            json!({
+                "hello": "world",
+                "main": "yo",
+                "obj": {
+                    "list": []
+                },
+                "main2": "yo2",
             }),
         );
 
@@ -339,19 +352,6 @@ mod tests {
             json!({
                 "hello": "world",
                 "main": "hello main",
-                "obj": {
-                    "list": []
-                },
-                "main2": "yo2",
-            }),
-        );
-
-        t(
-            r"-- @ROOT $foo",
-            &ctx,
-            json!({
-                "hello": "world",
-                "main": "yo",
                 "obj": {
                     "list": []
                 },
