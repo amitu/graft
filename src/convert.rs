@@ -18,11 +18,11 @@ fn eval(
     till: &str,
 ) -> Result<serde_json::Value, Error> {
     for (idx, section) in sections.iter().enumerate() {
-        if section.reference == till {
-            break;
-        }
         if idx < start {
             continue;
+        }
+        if section.reference == till {
+            break;
         }
         if section.reference != path {
             continue;
@@ -47,11 +47,11 @@ fn eval_list(
     /*to keep track whether an entry is added to the list; */
     let mut added = false;
     for (idx, section) in sections.iter().enumerate() {
-        if section.reference == till {
-            break;
-        }
         if idx < start {
             continue;
+        }
+        if section.reference == till {
+            break;
         }
         /* after an entry being added to the list and the very next reference doesnt follow the same path=> meaning context is changed,break;next entries will not belong to the current list*/
         if added &&  !section.reference.starts_with(path){
@@ -133,11 +133,11 @@ fn digest(
 
 fn has_path(path: &str, sections: &[Section], start: usize, till: &str) -> bool {
     for (idx, section) in sections.iter().enumerate() {
-        if section.reference == till {
-            break;
-        }
         if idx < start {
             continue;
+        }
+        if section.reference == till {
+            break;
         }
         if section.reference != path {
             continue;
