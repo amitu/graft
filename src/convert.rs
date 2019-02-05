@@ -56,7 +56,7 @@ fn eval_list(
         if section.reference != path {
             let path_buf = Path::new(path).to_path_buf();
             let reference_buf = Path::new(&section.reference).to_path_buf();
-            if reference_buf.parent()!=path_buf.parent() && !section.reference.starts_with(path) {
+            if reference_buf.parent() != path_buf.parent() && !section.reference.starts_with(path) {
                 break;
             }
             continue;
