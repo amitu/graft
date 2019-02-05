@@ -54,7 +54,7 @@ fn eval_list(
             continue;
         }
         /* after an entry being added to the list and the very next reference doesnt follow the same path=> meaning context is changed,break;next entries will not belong to the current list*/
-        if added &&  !section.reference.starts_with(path){
+        if added && !section.reference.starts_with(path) {
             break;
         }
         if section.reference != path {
@@ -67,7 +67,6 @@ fn eval_list(
         };
         lst.push(digest(&section.body, sections, idx, prefix, till)?);
         added = true;
-
     }
 
     Ok(serde_json::Value::Array(lst))
@@ -269,6 +268,32 @@ mod tests {
                             {"id": "first first child", "floaters": []},
                         ]
                     },
+                    {
+                        "id": "second child",
+                        "floaters": [
+                            {"id": "second first child", "floaters": []},
+                        ]
+                    },
+                ]
+            }),
+        );
+
+        t(
+            r#"
+                -- $hfloat
+                id: top
+                -- @floaters[] $hfloat
+                id: first child
+                -- @floaters[] $hfloat
+                id: second child
+                -- @floaters[]/floaters[] $hfloat
+                id: second first child
+            "#,
+            &ctx,
+            json!({
+                "id": "top",
+                "floaters": [
+                    {"id": "first child", "floaters": []},
                     {
                         "id": "second child",
                         "floaters": [
@@ -661,7 +686,7 @@ mod tests {
                 //-- @content[]/faq[] $faq_item
             "#,
             &ctx,
-            json!("<p>/-- @content[]/faq[] $faq_item</p>\n")
+            json!("<p>/-- @content[]/faq[] $faq_item</p>\n"),
         );
 
         /*t(
