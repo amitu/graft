@@ -2,6 +2,7 @@ use crate::context::Context;
 use crate::section::Section;
 use failure::{err_msg, Error};
 use serde_json;
+use std::path::Path;
 
 pub fn convert<T>(txt: &str, ctx: &T) -> Result<serde_json::Value, Error>
 where
@@ -44,8 +45,7 @@ fn eval_list(
     till: &str,
 ) -> Result<serde_json::Value, Error> {
     let mut lst = vec![];
-    /*to keep track whether an entry is added to the list; */
-    let mut added = false;
+
     for (idx, section) in sections.iter().enumerate() {
         if section.reference == till {
             break;
@@ -53,11 +53,12 @@ fn eval_list(
         if idx < start {
             continue;
         }
-        /* after an entry being added to the list and the very next reference doesnt follow the same path=> meaning context is changed,break;next entries will not belong to the current list*/
-        if added && !section.reference.starts_with(path) {
-            break;
-        }
         if section.reference != path {
+            let path_buf = Path::new(path).to_path_buf();
+            let reference_buf = Path::new(&section.reference).to_path_buf();
+            if reference_buf.parent() != path_buf.parent() && !section.reference.starts_with(path) {
+                break;
+            }
             continue;
         }
         let prefix = if path == "ROOT" {
@@ -66,7 +67,6 @@ fn eval_list(
             path.to_string() + "/"
         };
         lst.push(digest(&section.body, sections, idx, prefix, till)?);
-        added = true;
     }
 
     Ok(serde_json::Value::Array(lst))
