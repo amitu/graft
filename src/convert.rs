@@ -316,58 +316,58 @@ mod tests {
                     {
                         "id": "first child",
                         "floaters1": [
-                                        {
-                                            "id": "first first child",
-                                            "floaters1": [],
-                                            "floaters2": [],
-                                        }
-                                     ],
+                            {
+                                "id": "first first child",
+                                "floaters1": [],
+                                "floaters2": [],
+                            }
+                        ],
                         "floaters2": [
-                                        {
-                                            "id": "first second child",
-                                            "floaters1": [],
-                                            "floaters2": [],
-                                        }
-                                     ],
+                            {
+                                "id": "first second child",
+                                "floaters1": [],
+                                "floaters2": [],
+                            }
+                        ],
                     },
                 ],
                 "floaters2": [
                     {
                         "id": "second child",
                         "floaters1": [
+                            {
+                                "id": "second first child",
+                                "floaters1": [],
+                                "floaters2": [],
+                            },
+                            {
+                            "id": "second second child",
+                            "floaters1": [
                                 {
-                                    "id": "second first child",
-                                    "floaters1": [],
-                                    "floaters2": [],
-                                },
-                                {
-                                    "id": "second second child",
+                                    "id": "second second first child",
                                     "floaters1": [
-                                                    {
-                                                        "id": "second second first child",
-                                                        "floaters1": [
-                                                                         {
-                                                                            "id": "second second first first child",
-                                                                            "floaters1": [],
-                                                                            "floaters2": [],
-                                                                         }
-                                                                     ],
-                                                        "floaters2": [
-                                                                        {
-                                                                            "id": "second second first second child",
-                                                                            "floaters1": [],
-                                                                            "floaters2": [],
-                                                                        },
-                                                                        {
-                                                                            "id": "second second first third child",
-                                                                            "floaters1": [],
-                                                                            "floaters2": [],
-                                                                        },
-                                                                      ],
-                                                    },
-                                                 ],
-                                    "floaters2": [],
-                                }
+                                        {
+                                            "id": "second second first first child",
+                                            "floaters1": [],
+                                            "floaters2": [],
+                                        }
+                                    ],
+                                    "floaters2": [
+                                        {
+                                            "id": "second second first second child",
+                                            "floaters1": [],
+                                            "floaters2": [],
+                                        },
+                                        {
+                                            "id": "second second first third child",
+                                            "floaters1": [],
+                                            "floaters2": [],
+                                        },
+                                    ],
+                                },
+                            ],
+                            "floaters2": [],
+                            }
                         ],
                         "floaters2": [],
                     },
