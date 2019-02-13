@@ -2,7 +2,6 @@ use crate::context::Context;
 use crate::section::Section;
 use failure::{err_msg, Error};
 use serde_json;
-use std::path::Path;
 
 pub fn convert<T>(txt: &str, ctx: &T) -> Result<serde_json::Value, Error>
 where
@@ -54,9 +53,7 @@ fn eval_list(
             continue;
         }
         if section.reference != path {
-            let path_buf = Path::new(path).to_path_buf();
-            let reference_buf = Path::new(&section.reference).to_path_buf();
-            if reference_buf.parent() != path_buf.parent() && !section.reference.starts_with(path) {
+            if path.starts_with(section.reference.as_str()) {
                 break;
             }
             continue;
@@ -243,6 +240,139 @@ mod tests {
                     "$ref": "floaters[]"
                 }
             }"#,
+        ).with(
+            "gfloat.json",
+            r#"{
+                "id": {
+                    "$ref": "id"
+                },
+                "floaters1": {
+                    "$ref": "floaters1[]"
+                },
+                "floaters2": {
+                    "$ref": "floaters2[]"
+                }
+            }"#,
+        );
+
+        t(
+            r#"
+                -- $gfloat
+                id: top
+                -- @floaters1[] $gfloat
+                id: first child
+                -- @floaters2[] $gfloat
+                id: second child
+            "#,
+            &ctx,
+            json!({
+                "id": "top",
+                "floaters1": [
+                    {
+                        "id": "first child",
+                        "floaters1": [],
+                        "floaters2": [],
+                    },
+                ],
+                "floaters2": [
+                    {
+                        "id": "second child",
+                        "floaters1": [],
+                        "floaters2": [],
+                    },
+                ]
+            }),
+        );
+
+        t(
+            r#"
+                -- $gfloat
+                id: top
+                -- @floaters1[] $gfloat
+                id: first child
+                -- @floaters1[]/floaters2[] $gfloat
+                id: first second child
+                -- @floaters1[]/floaters1[] $gfloat
+                id: first first child
+                -- @floaters2[] $gfloat
+                id: second child
+                -- @floaters2[]/floaters1[] $gfloat
+                id: second first child
+                -- @floaters2[]/floaters1[] $gfloat
+                id: second second child
+                -- @floaters2[]/floaters1[]/floaters1[] $gfloat
+                id: second second first child
+                -- @floaters2[]/floaters1[]/floaters1[]/floaters2[] $gfloat
+                id: second second first second child
+                -- @floaters2[]/floaters1[]/floaters1[]/floaters1[] $gfloat
+                id: second second first first child
+                -- @floaters2[]/floaters1[]/floaters1[]/floaters2[] $gfloat
+                id: second second first third child
+            "#,
+            &ctx,
+            json!({
+                "id": "top",
+                "floaters1": [
+                    {
+                        "id": "first child",
+                        "floaters1": [
+                                        {
+                                            "id": "first first child",
+                                            "floaters1": [],
+                                            "floaters2": [],
+                                        }
+                                     ],
+                        "floaters2": [
+                                        {
+                                            "id": "first second child",
+                                            "floaters1": [],
+                                            "floaters2": [],
+                                        }
+                                     ],
+                    },
+                ],
+                "floaters2": [
+                    {
+                        "id": "second child",
+                        "floaters1": [
+                                {
+                                    "id": "second first child",
+                                    "floaters1": [],
+                                    "floaters2": [],
+                                },
+                                {
+                                    "id": "second second child",
+                                    "floaters1": [
+                                                    {
+                                                        "id": "second second first child",
+                                                        "floaters1": [
+                                                                         {
+                                                                            "id": "second second first first child",
+                                                                            "floaters1": [],
+                                                                            "floaters2": [],
+                                                                         }
+                                                                     ],
+                                                        "floaters2": [
+                                                                        {
+                                                                            "id": "second second first second child",
+                                                                            "floaters1": [],
+                                                                            "floaters2": [],
+                                                                        },
+                                                                        {
+                                                                            "id": "second second first third child",
+                                                                            "floaters1": [],
+                                                                            "floaters2": [],
+                                                                        },
+                                                                      ],
+                                                    },
+                                                 ],
+                                    "floaters2": [],
+                                }
+                        ],
+                        "floaters2": [],
+                    },
+                ]
+            }),
         );
 
         t(
