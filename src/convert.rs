@@ -136,6 +136,9 @@ fn has_path(path: &str, sections: &[Section], start: usize, till: &str) -> bool 
             continue;
         }
         if section.reference != path {
+            if path.starts_with((section.reference.to_string()+"/").as_str()) {
+                break;
+            }
             continue;
         }
         return true;
@@ -253,6 +256,78 @@ mod tests {
                     "$ref": "floaters2[]"
                 }
             }"#,
+        );
+
+        t(
+            r#"
+                -- $hfloat
+                id: top
+                -- @floaters[] $hfloat
+                id: first child
+                -- @floaters[]/floaters[] $hfloat
+                id: second child
+                -- @floaters[]/floaters[]/floaters[] $foo
+                main: "second main"
+                -- @floaters[]/floaters[] $hfloat
+                id: third child
+                -- @floaters[]/floaters[]/floaters[] $foo
+                main: "third main"
+                -- @floaters[]/floaters[] $hfloat
+                id: fourth child
+                -- @floaters[]/floaters[]/floaters[] $foo
+                main: "fourth main"
+                main2: "fourth main2"
+            "#,
+            &ctx,
+            json!({
+                "id": "top",
+                "floaters": [
+                              {
+                                  "id": "first child",
+                                  "floaters": [
+                                              {
+                                                "id": "second child",
+                                                "floaters": [
+                                                                {
+                                                                    "hello": "world",
+                                                                    "main": "second main",
+                                                                    "obj": {
+                                                                        "list": []
+                                                                    },
+                                                                    "main2": "yo2",
+                                                                }
+                                                            ],
+                                              },
+                                              {
+                                                "id": "third child",
+                                                "floaters": [
+                                                                {
+                                                                    "hello": "world",
+                                                                    "main": "third main",
+                                                                    "obj": {
+                                                                        "list": []
+                                                                    },
+                                                                    "main2": "yo2",
+                                                                }
+                                                            ],
+                                              },
+                                              {
+                                                "id": "fourth child",
+                                                "floaters": [
+                                                                {
+                                                                    "hello": "world",
+                                                                    "main": "fourth main",
+                                                                    "obj": {
+                                                                        "list": []
+                                                                    },
+                                                                    "main2": "fourth main2",
+                                                                }
+                                                            ],
+                                              },
+                                          ],
+                              },
+                  			],
+            })
         );
 
         t(
